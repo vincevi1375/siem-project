@@ -1,0 +1,5 @@
+#Ignore checkpoints folder, solely used for storing checkpoint to disk locally
+checkpoints/
+
+#Ignore the secrets folder, obviously
+secrets/

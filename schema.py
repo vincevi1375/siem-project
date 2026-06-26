@@ -158,7 +158,7 @@ class Normalizer(ABC):
         """
         same enforcement as the abstractmethod, basically ensuring that every Normalizer interface 
         created conatains this attribute, accessed like data rather than invoked like a function
-        every normalizer made MUST provide a source
+        every normalizer made MUST provide a source, a stable attribute that never changes
         """
         ...
 
@@ -182,7 +182,7 @@ class Normalizer(ABC):
         ...
 
     @abstractmethod
-    def normalize_batch(self, raw_events: list[dict]) -> NormalizeResults:
+    def normalize_batch(self, raw_events: list[dict], ingest_time: datetime) -> NormalizeResults:
         """
         this will take the batch of raw events, normalize AND organize them
         depending on whether or not they are true normalized events (mapped to core schema)
