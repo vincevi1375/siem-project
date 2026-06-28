@@ -80,6 +80,11 @@ class GCPNormalizer(Normalizer):
             return f"{self.source.value}-{stable_id}" 
 
     def normalize_batch(self, raw_events: list[dict], ingest_time: datetime) -> NormalizeResults:
+        """
+        yes, this function needs to be optimized with a helper, yes its an eye-sore, will address later
+        the large one-liners are technically optional fields if considering bare-minimum
+        however these fields are supposed to model Google SecOps UDM
+        """
         success = []
         fail = []
         for raw in raw_events:

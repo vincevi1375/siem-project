@@ -57,6 +57,99 @@ def test_checkpoint_and_query():
 
     assert "timestamp >=" not in fake_client.received_filter
 
+def test_normalize_batch_execution():
+    raw_event = {
+        "insertId": "abc123",
+        "timestamp": "2026-06-28T01:38:46.664569Z",
+        "protoPayload": {
+            "methodName": "google.iam.admin.v1.CreateServiceAccount",
+            "authenticationInfo": {"principalEmail": "user@example.com"},
+            "authorizationInfo": [{"granted": True}],
+            "resourceName": "projects/test-project",
+        }
+    }
+    normalizer = GCPNormalizer()
+    ingest_time = datetime(2026, 6, 28, 1, 41, 0, tzinfo=timezone.utc)
 
+    result = normalizer.normalize_batch([raw_event], ingest_time)
+
+    assert len(result.events) == 1
+    assert len(result.failures) == 0
+    event = result.events[0]
+    assert event.event_id == "gcp_audit-abc123"
+    assert event.action == "google.iam.admin.v1.CreateServiceAccount"        
+    assert event.outcome == Outcome.SUCCESS           
+    assert event.actor.type == ActorType.USER    
+    assert event.actor.id == "user@example.com"          
+    assert event.target.id == "projects/test-project"         
     
+def test_service_account_and_denied():
+    raw_event = {
+        "insertId": "abc123",
+        "timestamp": "2026-06-28T01:38:46.664569Z",
+        "protoPayload": {
+            "methodName": "google.iam.admin.v1.CreateServiceAccount",
+            "authenticationInfo": {"principalEmail": "user@gserviceaccount.com"},
+            "authorizationInfo": [{"granted": False}],
+            "resourceName": "projects/test-project",
+        }
+    }
+    normalizer = GCPNormalizer()
+    ingest_time = datetime(2026, 6, 28, 1, 41, 0, tzinfo=timezone.utc)
+
+    result = normalizer.normalize_batch([raw_event], ingest_time)
+
+    assert len(result.events) == 1
+    assert len(result.failures) == 0
+    event = result.events[0]
+    assert event.event_id == "gcp_audit-abc123"
+    assert event.action == "google.iam.admin.v1.CreateServiceAccount"        
+    assert event.outcome == Outcome.DENIED          
+    assert event.actor.type == ActorType.SERVICE_ACCOUNT        
+    assert event.actor.id == "user@gserviceaccount.com"          
+    assert event.target.id == "projects/test-project"     
+
+def test_system_event():
+    raw_event = {
+        "insertId": "abc123",
+        "timestamp": "2026-06-28T01:38:46.664569Z",
+        "protoPayload": {
+            "methodName": "google.iam.admin.v1.CreateServiceAccount",
+            "authenticationInfo": {},
+            "authorizationInfo": [{"granted": False}],
+            "resourceName": "projects/test-project",
+        }
+    }
+    normalizer = GCPNormalizer()
+    ingest_time = datetime(2026, 6, 28, 1, 41, 0, tzinfo=timezone.utc)
+
+    result = normalizer.normalize_batch([raw_event], ingest_time)
+
+    assert len(result.events) == 1
+    assert len(result.failures) == 0
+    event = result.events[0]
+    assert event.event_id == "gcp_audit-abc123"
+    assert event.action == "google.iam.admin.v1.CreateServiceAccount"        
+    assert event.outcome == Outcome.DENIED           
+    assert event.actor.type == ActorType.SYSTEM      
+    assert event.actor.id == None          
+    assert event.target.id == "projects/test-project"     
+
+def test_malformed_event():
+    raw_event = {
+        "insertId": "abc123",
+        "timestamp": "2026-06-28T01:38:46.664569Z",
+        "protoPayload": {
+            "authenticationInfo": {},
+            "authorizationInfo": [{"granted": False}],
+            "resourceName": "projects/test-project",
+        }
+    }
+    normalizer = GCPNormalizer()
+    ingest_time = datetime(2026, 6, 28, 1, 41, 0, tzinfo=timezone.utc)
+
+    result = normalizer.normalize_batch([raw_event], ingest_time)
+
+    assert len(result.events) == 0
+    assert len(result.failures) == 1
 
