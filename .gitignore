@@ -6,4 +6,7 @@ secrets/
 
 .env
 
-pipeline.py
+__pycache__/
+.pytest_cache/
+
+tests/__pycache__/
