@@ -46,7 +46,7 @@ class Actor(BaseModel):
     of it nuking the program pipeline in a later function.
     """
     type: ActorType
-    id: str                      # could be an email, service-account id, SID, etc. whatever the source's stable identifier is
+    id: str | None = None      # could be an email, service-account id, SID, etc. whatever the source's stable identifier is
     display_name: str | None = None
 
 class Target(BaseModel):

@@ -3,3 +3,7 @@ checkpoints/
 
 #Ignore the secrets folder, obviously
 secrets/
+
+.env
+
+pipeline.py
