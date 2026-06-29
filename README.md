@@ -23,28 +23,40 @@ Architecture
 
 This pipeline is built around a common Event schema. Every source format converges into this one schema and every destination format is built from it.
 
-GCP Audit Logs
-      │
+GCP Audit Logs  
+
+      │  
+      
       ▼  
       
-  GCPSource         pull raw events (batch, checkpoint-resumable)
-      │  raw dicts
+  GCPSource         pull raw events (batch, checkpoint-resumable)  
+  
+      │  raw dicts  
+      
       ▼  
       
-  GCPNormalizer     raw dict  ->  validated common Event
-      │  Event
+  GCPNormalizer     raw dict  ->  validated common Event  
+  
+      │  Event  
+      
       ▼  
       
-  Pipeline          orchestrates; owns checkpointing, retry, dead-lettering
-      │  Event
+  Pipeline          orchestrates; owns checkpointing, retry, dead-lettering  
+  
+      │  Event  
+      
       ▼  
       
-  SplunkFormatter   Event  ->  destination-shaped payload (HEC envelope)
-      │  HEC payload
+  SplunkFormatter   Event  ->  destination-shaped payload (HEC envelope)  
+  
+      │  HEC payload  
+      
       ▼  
       
-  SplunkSink        transport to SIEM; classifies failures
-      │
+  SplunkSink        transport to SIEM; classifies failures  
+  
+      │  
+      
       ▼  
       
     Splunk (HEC)
@@ -77,23 +89,17 @@ Dead-letter file. Failed events (normalization failures and poisoned batches) ar
 
 Project Structure
 
-.
+.  
 
+├── schema.py            # Abstract interfaces (Source, Normalizer, Formatter, Sink) and common Event schema  
 
-├── schema.py            # Abstract interfaces (Source, Normalizer, Formatter, Sink) and common Event schema
+├── gcp_src.py           # GCPSource: pulls GCP audit logs, GCPNormalizer: GCP raw -> Event  
 
+├── pipeline.py          # Pipeline orchestrator, checkpoint/dead-letter/retry helpers, FileSink, SplunkFormatter, SplunkSink  
 
-├── gcp_src.py           # GCPSource: pulls GCP audit logs, GCPNormalizer: GCP raw -> Event
+├── tests/               # unit tests (source, normalizer, formatter, pipeline, retry)  
 
-
-├── pipeline.py          # Pipeline orchestrator, checkpoint/dead-letter/retry helpers, FileSink, SplunkFormatter, SplunkSink
-
-
-├── tests/               # unit tests (source, normalizer, formatter, pipeline, retry)
-
-
-├── pyproject.toml       # Poetry project + dependencies
-
+├── pyproject.toml       # Poetry project + dependencies  
 
 └── README.md
 
@@ -139,16 +145,26 @@ limit — max events pulled per batch.
 
 Example normalized event
 
-json{
-  "event_id": "gcp_audit-<id>",
-  "event_time": "2026-06-28T01:38:46Z",
-  "ingest_time": "2026-06-28T01:41:32Z",
-  "source": "gcp_audit",
-  "action": "google.iam.admin.v1.CreateServiceAccount", # modeled on UDM structure (read future work)
-  "outcome": "success",                                 # modeled on UDM structure (read future work)
-  "actor": {"type": "user", "id": "user@example.com"},  # modeled on UDM structure (read future work)
-  "target": {"id": "projects/example-project"},         # modeled on UDM structure (read future work)
-  "raw": { "<id>": "original event preserved verbatim" }
+json{  
+
+  "event_id": "gcp_audit-<id>",  
+  
+  "event_time": "2026-06-28T01:38:46Z",  
+  
+  "ingest_time": "2026-06-28T01:41:32Z",  
+  
+  "source": "gcp_audit",  
+  
+  "action": "google.iam.admin.v1.CreateServiceAccount", # modeled on UDM structure (read future work)  
+  
+  "outcome": "success",                                 # modeled on UDM structure (read future work)  
+  
+  "actor": {"type": "user", "id": "user@example.com"},  # modeled on UDM structure (read future work)  
+  
+  "target": {"id": "projects/example-project"},         # modeled on UDM structure (read future work)  
+  
+  "raw": { "<id>": "original event preserved verbatim" }  
+  
 }
 
 
