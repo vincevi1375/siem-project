@@ -175,11 +175,16 @@ bashpoetry run python -m pytest
 Tests use dependency injection and fakes — no live API calls, so the suite runs anywhere. Coverage includes:
 
 
-Source — batch pull, checkpoint advancement, filter construction (injected fake client).
-Normalizer — field mapping, actor-type detection, outcome results, malformed events routed to failures.
-Formatter — HEC envelope shape and epoch-time conversion.
-Pipeline — end-to-end flow (source → normalize → sink) with fakes; unique-event delivery under at-least-once.
+Source — batch pull, checkpoint advancement, filter construction (injected fake client).  
+
+Normalizer — field mapping, actor-type detection, outcome results, malformed events routed to failures.  
+
+Formatter — HEC envelope shape and epoch-time conversion.  
+
+Pipeline — end-to-end flow (source → normalize → sink) with fakes; unique-event delivery under at-least-once.  
+
 Retry — recovery from transient failures, and halt after retry exhaustion (time.sleep patched).
+
 
 
 Known Limitations & Future Work
