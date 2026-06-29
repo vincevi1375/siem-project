@@ -1,15 +1,15 @@
-SIEM Ingestion Pipeline
+**SIEM Ingestion Pipeline**
 
 
 This is a production-style data pipeline built in Python. It pulls logs from various sources (just GCP for now), normalizes these raw events into a defined common schema, and delivers them to Splunk utilizing an least-once reliability design.
 
 
-Status
+**Status**
 
 Working end-to-end: GCP → Splunk. Tested. See Known Limitations for scoped tradeoffs.
 
 
-Overview
+**Overview**
 
 SOCs need clean, normalized log data from various sources all flowing into one systemized dashboard (the SIEM). Raw logs arrive in various shapes (GCP stores them as LogObject), and a detection engineer needs a universal schema in order to write logic that queries all log sources.
 
@@ -18,7 +18,7 @@ This project implements an ingestion pipeline that pulls logs from GCP Audit Log
 I've decided to build this system in order to get a better understanding of data pipelines in a domain that is in my field of study (cybersecurity). I have experience utilizing various SIEMs for IR as well as tailoring detections, however I have not been able to see what the infrastructure enabling the SIEM looks like. This project accounted for that gap.
 
 
-Architecture
+**Architecture**
 <img width="1735" height="1017" alt="image (1)" src="https://github.com/user-attachments/assets/3f5898a8-35f7-46f9-b5cb-bacd925f258b" />
 
 This pipeline is built around a common Event schema. Every source format converges into this one schema and every destination format is built from it.
@@ -26,37 +26,31 @@ This pipeline is built around a common Event schema. Every source format converg
 GCP Audit Logs  
 
       │  
-      
       ▼  
       
   GCPSource         pull raw events (batch, checkpoint-resumable)  
   
       │  raw dicts  
-      
       ▼  
       
   GCPNormalizer     raw dict  ->  validated common Event  
   
       │  Event  
-      
       ▼  
       
   Pipeline          orchestrates; owns checkpointing, retry, dead-lettering  
   
       │  Event  
-      
       ▼  
       
   SplunkFormatter   Event  ->  destination-shaped payload (HEC envelope)  
   
       │  HEC payload  
-      
       ▼  
       
   SplunkSink        transport to SIEM; classifies failures  
   
       │  
-      
       ▼  
       
     Splunk (HEC)
@@ -66,7 +60,7 @@ Sources and Normalizer interfaces are per-source. A Source pulls raw events from
 Formatters and Sinks are per-destination. A Formatter reshapes an Event into one destination's expected structure while the Sink transports it to its specified destination.
 
 
-Reliability Model
+**Reliability Model**
 
 This pipeline is based off of "at-least-once delivery." The source checkpoint is inclusive (timestamp >=), so a boundary event is never missed. However, the cost is that a boundary event may be re-pulled. Every event carries a deterministic event_id ({source}:{stable_id_or_hash}), so duplicates are identifiable and can be deduplicated downstream. It's favored to take redelivery over data-loss in the context of a data pipeline for a SIEM as lost logs can mean lost observability.
 
@@ -87,7 +81,7 @@ Collapsing these two errors would result in integrity and availability concerns:
 Dead-letter file. Failed events (normalization failures and poisoned batches) are appended to a JSON-lines dead letter file, with each entry capturing the raw data, the error, the stage, and a timestamp. These entries are appended, not overwritten. This allows for the ability to triage our pipeline's history.
 
 
-Project Structure
+**Project Structure**
 
 .  
 
@@ -104,7 +98,7 @@ Project Structure
 └── README.md
 
 
-Setup
+**Setup**
 
 Prerequisites
 
@@ -132,7 +126,7 @@ Splunk (HEC)
 Configure an HTTP Event Collector token in Splunk and provide the endpoint + token to the SplunkSink. <!-- [FILL] exact env var names / how you pass them -->
 
 
-Usage
+**Usage**
 
 <!-- [FILL] Verify the entry point and flags against your actual code. -->
 bashpoetry run python pipeline.py
@@ -168,7 +162,7 @@ json{
 }
 
 
-Testing
+**Testing**
 
 bashpoetry run python -m pytest
 
@@ -187,7 +181,7 @@ Retry — recovery from transient failures, and halt after retry exhaustion (tim
 
 
 
-Known Limitations & Future Work
+**Known Limitations & Future Work**
 
 These are deliberate, understood tradeoffs given the project scope. Each limitation is addressed with a known fix.
 
@@ -203,7 +197,7 @@ Partial-batch failure. The sink contract is all-or-nothing per batch (appropriat
 Null Description. Each normalized event contains a description field, as of now this field is = None. In order to fill this field with useful information, an LLM will interpret each normalized Event, and insert a natural language summary into the description field along with a triage hint for possible SOC investigation.
 
 
-Roadmap
+**Roadmap**
 
 
 Additional sources (Okta system logs, CrowdStrike, AWS CloudTrail).
