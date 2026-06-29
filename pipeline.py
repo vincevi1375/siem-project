@@ -2,6 +2,8 @@ from gcp_src import *
 from pathlib import Path
 import random
 import time
+import requests
+import os
 from dotenv import load_dotenv; load_dotenv()
 
 def write_checkpoint(file_path, checkpoint):
@@ -76,6 +78,8 @@ def write_with_retry(sink, records, dead_letter, max_retries=5):
 
 class FileSink(Sink):
     """
+    THIS IS NOW DEPRECIATED, used only for local testing
+    ------
     our file sink, this is leveraged for local testing or if one's use case requires
     events to be stored locally on disc. really the only reason this was made is due to
     the UDM use case as well as testing the pipeline wiring while waiting for Splunk access
@@ -88,6 +92,31 @@ class FileSink(Sink):
         with open(self.path, "a") as f: # auto open auto close
             for record in records:
                 f.write(json.dumps(record) + "\n") 
+
+class SplunkSink(Sink):
+    """
+    our Splunk sink, this is for production usage. normaalized and formatted records are POST'd 
+    to our splunk HEC endpoint in batches. it builds our POST based on user input = flexibility
+    it also implements the transient/permanent error handling allowing us to have  better
+    understanding of exactly what went wrong and whether or not it requires human intervention
+    """
+    def __init__(self, hec_url: str, token: str):
+        self.hec_url = hec_url
+        self.token = token
+
+    def write(self, records: list[dict]) -> None:
+        auth_header = {"Authorization": f"Splunk {self.token}"}
+        body = "\n".join(json.dumps(record) for record in records)
+        try:
+            response = requests.post(self.hec_url, headers = auth_header, data = body, timeout=(3.05, 30), verify=False) # verify=False shouldn't be used in production, should verify against a proper CA
+        except requests.exceptions.RequestException as e:
+            raise TransientSinkError(f"Splunk is unreachable: {e}")
+        if response.status_code == 200:
+            return
+        elif response.status_code == 429 or response.status_code >= 500:
+            raise TransientSinkError(f"Splunk transient error: {response.status_code}")
+        else:
+            raise PermanentSinkError(f"Splunk permanent error: {response.status_code}")
 
 class SplunkFormatter(Formatter):
     """
@@ -104,16 +133,17 @@ class SplunkFormatter(Formatter):
         }
 
 class Pipeline():
-    def __init__(self, source, normalizer, sink, checkpoint_path, dead_path):
+    def __init__(self, source, normalizer, sink, checkpoint_path, dead_path, formatter = None):
         self.source = source
         self.normalizer = normalizer
+        self.formatter = formatter
         self.sink = sink
         self.checkpoint_path = checkpoint_path
         self.dead_path = dead_path
 
     def run(self, limit = 100, poll_intervals = 5, once = False):
         """
-        this is pipeline execution, step by ste, wiring all components of the pipeline into one
+        this is pipeline execution, step by step, wiring all components of the pipeline into one
         keeping this method inside a class makes it easier to test functionality and make 
         edits in the future. still needs some optimization for possible rate limits, but
         shouldn't be too bad (a logic error occured resulting in this pipeline pulling > 60 different batches 
@@ -148,7 +178,7 @@ class Pipeline():
              for fail in results.failures:
                  write_to_dead_letter(self.dead_path, [fail.raw], fail.error, "normalize")
 
-             records = [e.model_dump(mode="json") for e in results.events]
+             records = [self.formatter.format(e) for e in results.events]
 
              write_with_retry(self.sink, records, self.dead_path)
 
@@ -156,13 +186,18 @@ class Pipeline():
 
              checkpoint = batch.next_checkpoint
 
+hec_url = os.environ["SPLUNK_HEC_URL"]
+token = os.environ["SPLUNK_HEC_TOKEN"]
+
 source = GCPSource("siem-project-500620")
 normalizer = GCPNormalizer()
-sink = FileSink("output/events.jsonl")
+formatter = SplunkFormatter()
+sink = SplunkSink(hec_url=hec_url, token=token)
 
 pipeline = Pipeline(
     source=source,
     normalizer=normalizer,
+    formatter=formatter,
     sink=sink,
     checkpoint_path="checkpoints/gcp_checkpoint.json",
     dead_path="dlq/gcp_dead.jsonl",
