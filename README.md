@@ -1,7 +1,7 @@
 # **SIEM Ingestion Pipeline**
 
 
-This is a production-style data pipeline built in Python. It pulls logs from various sources (just GCP for now), normalizes these raw events into a defined common schema, and delivers them to Splunk utilizing an least-once reliability design.
+This is a production-style data pipeline built in Python. It pulls logs from various sources (just GCP for now), normalizes these raw events into a defined common schema, and delivers them to Splunk utilizing an at-least-once reliability design.
 
 
 ## **Status**
@@ -64,7 +64,7 @@ Formatters and Sinks are per-destination. A Formatter reshapes an Event into one
 
 This pipeline is based off of "at-least-once delivery." The source checkpoint is inclusive (timestamp >=), so a boundary event is never missed. However, the cost is that a boundary event may be re-pulled. Every event carries a deterministic event_id ({source}:{stable_id_or_hash}), so duplicates are identifiable and can be deduplicated downstream. It's favored to take redelivery over data-loss in the context of a data pipeline for a SIEM as lost logs can mean lost observability.
 
-Unique Event IDs. When design this pipeline, flexibility and expansion were heavily weighted factors during blueprinting. With the pipeline ingetsing data from various sources, two edge cases arose. The first being the possibility of event ID collision across two (or more) different data sources (e.g. GCP generates id = 73632, Okta generates id = 73632). In order to prevent this case from happening, during normalization all extracted event IDs are prefixed with the source they originated from (e.g. GCP: gcp_audit-1782, Okta: okta-1782). The second edge case introduced was the possibility for no event_id to be returned from a data source (highly unlikely). To account for this case, any raw event in which an ID cannot be extracted, we create one while prefixing with its associated data source. ID creation is done through hashing in which we hash the entire raw event using a deterministic hash (sha256) to ensure that, same event = same ID. This hash is then prefixed by it's data source.
+Unique Event IDs. When designing this pipeline, flexibility and expansion were heavily weighted factors during blueprinting. With the pipeline ingesting data from various sources, two edge cases arose. The first being the possibility of event ID collision across two (or more) different data sources (e.g. GCP generates id = 73632, Okta generates id = 73632). In order to prevent this case from happening, during normalization all extracted event IDs are prefixed with the source they originated from (e.g. GCP: gcp_audit-1782, Okta: okta-1782). The second edge case introduced was the possibility for no event_id to be returned from a data source (highly unlikely). To account for this case, any raw event in which an ID cannot be extracted, we create one while prefixing with its associated data source. ID creation is done through hashing in which we hash the entire raw event using a deterministic hash (sha256) to ensure that, same event = same ID. This hash is then prefixed by it's data source.
 
 Checkpoint persistence. After a batch is successfully delivered to the sink, the source's next checkpoint is written to a per-source JSON file (will overwrite, only the newest confirmed checkpoint is needed). On a restart, the pipeline resumes from this checkpoint. Given that the checkpoint is written only after successful delivery, a crash mid-batch results in re-delivery, never silent loss. Again, this is to ensure data-loss is not possible.
 
@@ -122,14 +122,18 @@ The pipeline loads this via python-dotenv. Secrets and runtime artifacts (secret
 
 Splunk (HEC)
 
-<!-- [FILL] once built: HEC endpoint + token configuration, e.g. SPLUNK_HEC_URL and SPLUNK_HEC_TOKEN env vars -->
-Configure an HTTP Event Collector token in Splunk and provide the endpoint + token to the SplunkSink. <!-- [FILL] exact env var names / how you pass them -->
+Enable the HTTP Event Collector in Splunk (Settings → Data Inputs → HTTP Event Collector), create a token, and note your HEC endpoint. Provide both to the pipeline via gitignored env vars:  
+# .env (gitignored)
+SPLUNK_HEC_URL=https://<your-stack>.splunkcloud.com:8088/services/collector/event
+SPLUNK_HEC_TOKEN=<your-hec-token>  
+The SplunkSink reads these at construction. Note: this project uses verify=False on the HEC request to account for the trial instance's self-signed certificate. In production, TLS certificates should be verified against a proper CA bundle.
 
 
 ## **Usage**
 
-<!-- [FILL] Verify the entry point and flags against your actual code. -->
-bashpoetry run python pipeline.py
+bash  
+poetry run python pipeline.py  
+The params are hardcoded in pipeline.py, change them as needed.
 
 
 once=True — pull only the available events and exit (useful for testing).
@@ -137,7 +141,7 @@ continuous mode — poll on an interval, tailing new events.
 limit — max events pulled per batch.
 
 
-Example normalized event
+Example normalized event (not a HEC payload)
 
 json{  
 
@@ -166,7 +170,7 @@ json{
 
 bashpoetry run python -m pytest
 
-Tests use dependency injection and fakes — no live API calls, so the suite runs anywhere. Coverage includes:
+Tests use dependency injection and fakes (and now mocks). There is no live API calls, so the suite runs anywhere. Coverage includes:
 
 
 Source — batch pull, checkpoint advancement, filter construction (injected fake client).  
@@ -179,7 +183,7 @@ Pipeline — end-to-end flow (source → normalize → sink) with fakes; unique-
 
 Retry — recovery from transient failures, and halt after retry exhaustion (time.sleep patched).
 
-
+Sink — HEC response classification (200 success, 429/5xx transient, 4xx permanent, connection error transient) via mocked requests.post.
 
 ## **Known Limitations & Future Work**
 
