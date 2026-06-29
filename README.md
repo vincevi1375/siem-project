@@ -22,7 +22,7 @@ I've decided to build this system in order to get a better understanding of data
 
 
 
-https://github.com/user-attachments/assets/46cffe91-990d-4edb-be41-918692afadde
+
 
 
 
