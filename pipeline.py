@@ -4,6 +4,7 @@ import random
 import time
 import requests
 import os
+import urllib3
 from dotenv import load_dotenv; load_dotenv()
 
 def write_checkpoint(file_path, checkpoint):
@@ -186,22 +187,22 @@ class Pipeline():
 
              checkpoint = batch.next_checkpoint
 
-hec_url = os.environ["SPLUNK_HEC_URL"]
-token = os.environ["SPLUNK_HEC_TOKEN"]
+if __name__ == "__main__":
+    hec_url = os.environ["SPLUNK_HEC_URL"]
+    token = os.environ["SPLUNK_HEC_TOKEN"]
 
-source = GCPSource("siem-project-500620")
-normalizer = GCPNormalizer()
-formatter = SplunkFormatter()
-sink = SplunkSink(hec_url=hec_url, token=token)
+    source = GCPSource("siem-project-500620")
+    normalizer = GCPNormalizer()
+    formatter = SplunkFormatter()
+    sink = SplunkSink(hec_url=hec_url, token=token)
 
-pipeline = Pipeline(
-    source=source,
-    normalizer=normalizer,
-    formatter=formatter,
-    sink=sink,
-    checkpoint_path="checkpoints/gcp_checkpoint.json",
-    dead_path="dlq/gcp_dead.jsonl",
-)
-
-pipeline.run(limit=50, once=True)   # once=true so it drains and stops, not infinite runs
-print("Pipeline run complete.")
+    pipeline = Pipeline(
+        source=source,
+        normalizer=normalizer,
+        formatter=formatter,
+        sink=sink,
+        checkpoint_path="checkpoints/gcp_checkpoint.json",
+        dead_path="dlq/gcp_dead.jsonl",
+    )
+    pipeline.run(limit=50, once=True)   # once=true so it drains and stops, not infinite runs
+    print("Pipeline run complete.")
