@@ -211,7 +211,7 @@ Source-side retry. Retry/backoff currently wraps the sink. A transient failure o
 
 Alerting & supervised restart. On transient-exhaustion the pipeline halts; it should emit structured CRITICAL logging and fire an alert (possible webhook notification to Slack/Teams). A pipeline restart is assumed to be handled by a supervisor (systemd/Kubernetes), which resumes from the un-advanced checkpoint.
 
-Partial-batch failure. The sink contract is all-or-nothing per batch (appropriate for Splunk HEC which accepts or rejects at the batch level). A destination with per-item failure reporting (Elastic _bulk) would need a WriteResult return type to retry only the failed subset.
+Partial-batch failure. The sink contract is all-or-nothing per batch (appropriate for Splunk HEC which accepts or rejects at the batch level). A destination with per-item failure reporting (like Elastic _bulk) would need a object return type to retry only the failed subset.
 
 Null Description. Each normalized event contains a description field, as of now this field is = None. In order to fill this field with useful information, an LLM will interpret each normalized Event, and insert a natural language summary into the description field along with a triage hint for possible SOC investigation.
 
