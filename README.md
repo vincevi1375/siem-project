@@ -24,6 +24,10 @@ I've decided to build this system in order to get a better understanding of data
 
 
 
+https://github.com/user-attachments/assets/f02b22a2-adb0-459c-b558-53821b70b76b
+
+
+
 
 
 
