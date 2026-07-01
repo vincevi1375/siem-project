@@ -31,7 +31,7 @@ https://github.com/user-attachments/assets/f02b22a2-adb0-459c-b558-53821b70b76b
 
 
 
-
+Note - This video demo showcases a single run of the pipeline, in a production environment this pipeline would ruun indefinitely (this option can be set via pipeline.run params in pipeline.py)
 
 ## **Architecture**
 <img width="1735" height="1017" alt="image (1)" src="https://github.com/user-attachments/assets/3f5898a8-35f7-46f9-b5cb-bacd925f258b" />
